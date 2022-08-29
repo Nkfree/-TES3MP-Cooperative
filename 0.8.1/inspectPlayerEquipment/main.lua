@@ -24,7 +24,7 @@ script.messages["unloggedPid"] = "Cannot inspect unlogged player.";
 script.messages["wrongCmd"] = "Wrong command:\n/" ..
     script.config.inspectCommand .. " <pid> OR /" .. script.config.inspectCommand .. " <name>";
 
-script.GetInspectingPids = function(pid)
+function script.GetInspectingPids(pid)
     local inspectingPids = {}
 
     for inspectingPid, containerData in pairs(script.containersData) do
@@ -36,7 +36,7 @@ script.GetInspectingPids = function(pid)
     return inspectingPids
 end
 
-script.GetNameByPid = function(pid)
+function script.GetNameByPid(pid)
     if Players[pid] ~= nil and Players[pid]:IsLoggedIn() then
         return Players[pid].accountName
     end
@@ -44,7 +44,7 @@ script.GetNameByPid = function(pid)
     return nil
 end
 
-script.GetPidByName = function(name)
+function script.GetPidByName(name)
     for pid, player in pairs(Players) do
         if string.lower(player.accountName) == string.lower(name) and Players[pid]:IsLoggedIn() then
             return pid
@@ -54,15 +54,15 @@ script.GetPidByName = function(name)
     return nil
 end
 
-script.IsPlayerLoggedIn = function(pid)
+function script.IsPlayerLoggedIn(pid)
     return Players[pid] ~= nil and Players[pid]:IsLoggedIn()
 end
 
-script.NotifyPlayer = function(pid, msg)
+function script.NotifyPlayer(pid, msg)
     tes3mp.SendMessage(pid, color.Yellow .. msg .. "\n" .. color.Default, false)
 end
 
-script.AddContainerData = function(pid, targetPid, cellDescription, recordId, uniqueIndex)
+function script.AddContainerData(pid, targetPid, cellDescription, recordId, uniqueIndex)
     script.containersData[pid] = {
         cellDescription = cellDescription,
         targetPid = targetPid,
@@ -71,11 +71,11 @@ script.AddContainerData = function(pid, targetPid, cellDescription, recordId, un
     }
 end
 
-script.RemoveContainerData = function(pid)
+function script.RemoveContainerData(pid)
     script.containersData[pid] = nil
 end
 
-script.CreateSendContainerRecord = function(pid, targetPid)
+function script.CreateSendContainerRecord(pid, targetPid)
     local targetName = script.GetNameByPid(targetPid)
 
     if targetName ~= nil then
@@ -97,7 +97,7 @@ script.CreateSendContainerRecord = function(pid, targetPid)
     return nil
 end
 
-script.PlaceContainerInPlayerCell = function(pid, recordId)
+function script.PlaceContainerInPlayerCell(pid, recordId)
     if not script.IsPlayerLoggedIn(pid) then return nil end
 
     local cellDescription = tes3mp.GetCell(pid)
@@ -137,12 +137,12 @@ script.PlaceContainerInPlayerCell = function(pid, recordId)
     return cellDescription, uniqueIndex
 end
 
-script.ActivateContainer = function(pid, cellDescription, uniqueIndex)
+function script.ActivateContainer(pid, cellDescription, uniqueIndex)
     if not script.IsPlayerLoggedIn(pid) then return end
     logicHandler.ActivateObjectForPlayer(pid, cellDescription, uniqueIndex)
 end
 
-script.UpdateContainerItems = function(pid)
+function script.UpdateContainerItems(pid)
     local containerData = script.containersData[pid]
 
     if containerData == nil or not script.IsPlayerLoggedIn(containerData.targetPid) then return end
@@ -182,7 +182,7 @@ script.UpdateContainerItems = function(pid)
 end
 
 -- Create new container record, add related data, gather items from inspected player and activate it for the pid
-script.ShowContainer = function(pid, targetPid)
+function script.ShowContainer(pid, targetPid)
     local recordId = script.CreateSendContainerRecord(pid, targetPid)
     if recordId == nil then return end
 
@@ -194,7 +194,7 @@ script.ShowContainer = function(pid, targetPid)
     script.ActivateContainer(pid, cellDescription, uniqueIndex)
 end
 
-script.DeleteContainerFromWorld = function(pid)
+function script.DeleteContainerFromWorld(pid)
     local containerData = script.containersData[pid]
 
     if containerData == nil or not script.IsPlayerLoggedIn(pid) then return end
@@ -207,12 +207,12 @@ script.DeleteContainerFromWorld = function(pid)
 end
 
 -- Remove container from world as well as data
-script.RemoveContainer = function(pid)
+function script.RemoveContainer(pid)
     script.DeleteContainerFromWorld(pid)
     script.RemoveContainerData(pid)
 end
 
-script.OnContainerValidator = function(eventStatus, pid, cellDescription, objects)
+function script.OnContainerValidator(eventStatus, pid, cellDescription, objects)
     for _, object in pairs(objects) do
         local containerData = script.containersData[pid]
 
@@ -229,7 +229,7 @@ script.OnContainerValidator = function(eventStatus, pid, cellDescription, object
     end
 end
 
-script.OnPlayerEquipmentHandler = function(eventStatus, pid, playerPacket)
+function script.OnPlayerEquipmentHandler(eventStatus, pid, playerPacket)
     local inspectingPids = script.GetInspectingPids(pid)
 
     -- Update container items for all players currently inspecting this pid
@@ -240,7 +240,7 @@ script.OnPlayerEquipmentHandler = function(eventStatus, pid, playerPacket)
     end
 end
 
-script.OnPlayerDisconnectValidator = function(eventStatus, pid)
+function script.OnPlayerDisconnectValidator(eventStatus, pid)
     -- Remove containers for all players inspecting this pid
     local inspectingPids = script.GetInspectingPids(pid)
     for _, inspectingPid in ipairs(inspectingPids) do
@@ -256,7 +256,7 @@ script.OnPlayerDisconnectValidator = function(eventStatus, pid)
     end
 end
 
-script.OnGearCommand = function(pid, cmd)
+function script.OnGearCommand(pid, cmd)
     local targetName = tableHelper.concatenateArrayValues(cmd, 2)
     local targetPid = tonumber(cmd[2]) or script.GetPidByName(targetName)
 
