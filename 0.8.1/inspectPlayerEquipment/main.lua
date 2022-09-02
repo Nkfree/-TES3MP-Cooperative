@@ -2,13 +2,13 @@
 =====================================
 | author: Nkfree                    |
 | github: https://github.com/Nkfree |
-| installation:                     |=========================================================================================
-|   1. Create folder inspectPlayerEquipment in <tes3mp>/server/scripts/custom                                                |
-|   2. Add main.lua in that created folder                                                                                   |
-|   3. Open customScripts.lua and put there this line: require("custom.inspectPlayerEquipment.main")                         |
-|   4. Save customScripts.lua and launch the server                                                                          |
-|   5. To confirm the script is running fine, you should see "[InspectPlayerEquipment] Running..." among the few first lines |
-==============================================================================================================================
+| installation:                     |===========================================================================================================
+|   1. Create folder inspectPlayerEquipment in <tes3mp>/server/scripts/custom                                                                  |
+|   2. Add main.lua in that created folder                                                                                                     |
+|   3. Open customScripts.lua and put there this line: require("custom.inspectPlayerEquipment.main")                                           |
+|   4. Save customScripts.lua and launch the server                                                                                            |
+|   5. To confirm the script is running fine, you should see "[InspectPlayerEquipment] Running..." among the first few lines of server console |
+================================================================================================================================================
 ]]
 
 local script = {}
