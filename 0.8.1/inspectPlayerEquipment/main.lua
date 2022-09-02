@@ -233,11 +233,22 @@ function script.DeleteContainerFromWorld(pid)
 
     if containerData == nil or not script.IsPlayerLoggedIn(pid) then return end
 
+    -- Cover case where cell is no longer loaded
+    local unloadCellAtEnd = false
+    if LoadedCells[containerData.cellDescription] == nil then
+        unloadCellAtEnd = true
+        logicHandler.LoadCellForPlayer(pid, containerData.cellDescription)
+    end
+
     tes3mp.ClearObjectList()
     tes3mp.SetObjectListPid(pid)
     tes3mp.SetObjectListCell(containerData.cellDescription)
     packetBuilder.AddObjectDelete(containerData.uniqueIndex, {})
     tes3mp.SendObjectDelete(false)
+
+    if unloadCellAtEnd then
+        logicHandler.UnloadCellForPlayer(pid, containerData.cellDescription)
+    end
 end
 
 -- Remove container from world as well as data
@@ -248,6 +259,15 @@ end
 
 function script.OnServerPostInitHandler(eventStatus)
     tes3mp.LogMessage(1, "[InspectPlayerEquipment] Running...")
+end
+
+-- If the cell is about to be unloaded, destroy the container for player otherwise it will not get properly updated after the transfer to another cell
+function script.OnCellUnloadValidator(eventStatus, pid, cellDescription)
+    local containerData = script.containersData[pid]
+
+    if containerData == nil or containerData.cellDescription ~= cellDescription then return end
+
+    script.RemoveContainer(pid)
 end
 
 function script.OnContainerValidator(eventStatus, pid, cellDescription, objects)
@@ -342,6 +362,7 @@ function script.OnInspectCommand(pid, cmd)
     script.ShowContainer(pid, targetPid)
 end
 
+customEventHooks.registerValidator("OnCellUnload", script.OnCellUnloadValidator)
 customEventHooks.registerValidator("OnContainer", script.OnContainerValidator)
 customEventHooks.registerValidator("OnPlayerDisconnect", script.OnPlayerDisconnectValidator)
 
