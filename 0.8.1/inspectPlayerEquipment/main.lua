@@ -2,7 +2,13 @@
 =====================================
 | author: Nkfree                    |
 | github: https://github.com/Nkfree |
-=====================================
+| installation:                     |=========================================================================================
+|   1. Create folder inspectPlayerEquipment in <tes3mp>/server/scripts/custom                                                |
+|   2. Add main.lua in that created folder                                                                                   |
+|   3. Open customScripts.lua and put there this line: require("custom.inspectPlayerEquipment.main")                         |
+|   4. Save customScripts.lua and launch the server                                                                          |
+|   5. To confirm the script is running fine, you should see "[InspectPlayerEquipment] Running..." among the few first lines |
+==============================================================================================================================
 ]]
 
 local script = {}
@@ -13,9 +19,11 @@ script.config.inspectCommand = "gear"; -- Command usable in chat
 script.containersData = {}
 
 script.containerRecord = {
-    baseId = "chest_small_01",
     id = "inspect",
-    name = "Inspecting %s's equipment ..."
+    data = {
+        baseId = "chest_small_01",
+        name = "Inspecting %s's equipment ..."
+    }
 }
 
 script.messages = {}
@@ -62,27 +70,53 @@ function script.NotifyPlayer(pid, msg)
     tes3mp.SendMessage(pid, color.Yellow .. msg .. "\n" .. color.Default, false)
 end
 
-function script.AddContainerData(pid, targetPid, cellDescription, recordId, uniqueIndex)
+function script.AddContainerData(pid, targetPid, cellDescription, uniqueIndex)
     script.containersData[pid] = {
         cellDescription = cellDescription,
+        itemsToRetrieve = {},
         targetPid = targetPid,
-        recordId = recordId,
         uniqueIndex = uniqueIndex,
     }
+end
+
+function script.AddItemToRetrive(containerData, item)
+    table.insert(containerData.itemsToRetrieve, item)
+end
+
+function script.RemoveItemToRetrieve(containerData, item)
+    tableHelper.removeValue(containerData.itemsToRetrieve, item)
+
+    for index, itemToRetrieve in ipairs(containerData.itemsToRetrieve) do
+        if tableHelper.isEqualTo(item, itemToRetrieve) then
+            containerData.itemsToRetrieve[index] = nil
+        end
+    end
 end
 
 function script.RemoveContainerData(pid)
     script.containersData[pid] = nil
 end
 
-function script.CreateSendContainerRecord(pid, targetPid)
+function script.RetrieveItems(pid, itemArray)
+    local containerData = script.containersData[pid]
+
+    for _, item in ipairs(itemArray) do
+        inventoryHelper.addItem(Players[pid].data.inventory, item.refId, item.count, item.charge, item.enchantmentCharge
+            , item.soul)
+        script.RemoveItemToRetrieve(containerData, item)
+    end
+
+    Players[pid]:LoadItemChanges(itemArray, enumerations.inventory.ADD)
+end
+
+function script.SendContainerRecord(pid, targetPid)
     local targetName = script.GetNameByPid(targetPid)
 
     if targetName ~= nil then
         local recordId = script.containerRecord.id
         local recordData = {
-            baseId = script.containerRecord.baseId,
-            name = string.format(script.containerRecord.name, targetName)
+            baseId = script.containerRecord.data.baseId,
+            name = string.format(script.containerRecord.data.name, targetName)
         }
 
         tes3mp.ClearRecords()
@@ -91,13 +125,13 @@ function script.CreateSendContainerRecord(pid, targetPid)
         packetBuilder.AddContainerRecord(recordId, recordData)
         tes3mp.SendRecordDynamic(pid, false, false)
 
-        return recordId
+        return true
     end
 
-    return nil
+    return false
 end
 
-function script.PlaceContainerInPlayerCell(pid, recordId)
+function script.PlaceContainerInPlayerCell(pid)
     if not script.IsPlayerLoggedIn(pid) then return nil end
 
     local cellDescription = tes3mp.GetCell(pid)
@@ -110,7 +144,7 @@ function script.PlaceContainerInPlayerCell(pid, recordId)
         rotZ = 0
     }
 
-    local objectData = dataTableBuilder.BuildObjectData(recordId)
+    local objectData = dataTableBuilder.BuildObjectData(script.containerRecord.id)
     objectData.location = location
 
     local mpNum = WorldInstance:GetCurrentMpNum() + 1
@@ -156,7 +190,7 @@ function script.UpdateContainerItems(pid)
     local splitIndex = containerData.uniqueIndex:split("-")
     tes3mp.SetObjectRefNum(splitIndex[1])
     tes3mp.SetObjectMpNum(splitIndex[2])
-    tes3mp.SetObjectRefId(containerData.recordId)
+    tes3mp.SetObjectRefId(script.containerRecord.id)
 
     for _, item in pairs(targetEquipment) do
         local refId = item.refId
@@ -181,15 +215,15 @@ function script.UpdateContainerItems(pid)
     tes3mp.SendContainer(false, false)
 end
 
--- Create new container record, add related data, gather items from inspected player and activate it for the pid
+-- Create new container record, send the record to pid, add related data, gather items from inspected player and activate it for the pid
 function script.ShowContainer(pid, targetPid)
-    local recordId = script.CreateSendContainerRecord(pid, targetPid)
-    if recordId == nil then return end
+    local hasSent = script.SendContainerRecord(pid, targetPid)
+    if not hasSent then return end
 
-    local cellDescription, uniqueIndex = script.PlaceContainerInPlayerCell(pid, recordId)
+    local cellDescription, uniqueIndex = script.PlaceContainerInPlayerCell(pid)
     if cellDescription == nil or uniqueIndex == nil then return end
 
-    script.AddContainerData(pid, targetPid, cellDescription, recordId, uniqueIndex)
+    script.AddContainerData(pid, targetPid, cellDescription, uniqueIndex)
     script.UpdateContainerItems(pid)
     script.ActivateContainer(pid, cellDescription, uniqueIndex)
 end
@@ -212,15 +246,36 @@ function script.RemoveContainer(pid)
     script.RemoveContainerData(pid)
 end
 
+function script.OnServerPostInitHandler(eventStatus)
+    tes3mp.LogMessage(1, "[InspectPlayerEquipment] Running...")
+end
+
 function script.OnContainerValidator(eventStatus, pid, cellDescription, objects)
-    for _, object in pairs(objects) do
+    for objectIndex, object in ipairs(objects) do
         local containerData = script.containersData[pid]
 
         if containerData ~= nil and object.uniqueIndex == containerData.uniqueIndex then
+            local action = tes3mp.GetObjectListAction()
             local containerSubAction = tes3mp.GetObjectListContainerSubAction()
 
-            -- Container gets closed upon selecting Take All, therefore remove it
-            if containerSubAction == enumerations.containerSub.TAKE_ALL then
+            -- Remember the items the pid tried to add to the container
+            -- so that it can be caught in the OnPlayerInventory packet and retrieved to the pid
+            -- this should prevent pid from losing items dragged and dropped to this container
+            if action == enumerations.container.ADD then
+                for itemIndex = 0, tes3mp.GetContainerChangesSize(objectIndex - 1) - 1 do
+                    local item = {
+                        refId = tes3mp.GetContainerItemRefId(objectIndex - 1, itemIndex),
+                        count = tes3mp.GetContainerItemCount(objectIndex - 1, itemIndex),
+                        charge = tes3mp.GetContainerItemCharge(objectIndex - 1, itemIndex),
+                        enchantmentCharge = tes3mp.GetContainerItemEnchantmentCharge(objectIndex - 1, itemIndex),
+                        soul = tes3mp.GetContainerItemSoul(objectIndex - 1, itemIndex)
+                    }
+
+                    script.AddItemToRetrive(containerData, item)
+
+                end
+                -- Container gets closed upon selecting Take All, therefore remove it
+            elseif containerSubAction == enumerations.containerSub.TAKE_ALL then
                 script.RemoveContainer(pid)
             end
 
@@ -240,6 +295,14 @@ function script.OnPlayerEquipmentHandler(eventStatus, pid, playerPacket)
     end
 end
 
+function script.OnPlayerInventoryHandler(eventStatus, pid, playerPacket)
+    local containerData = script.containersData[pid]
+    if playerPacket.action ~= enumerations.inventory.REMOVE or containerData == nil or
+        #containerData.itemsToRetrieve <= 0 then return end
+
+    script.RetrieveItems(pid, playerPacket.inventory)
+end
+
 function script.OnPlayerDisconnectValidator(eventStatus, pid)
     -- Remove containers for all players inspecting this pid
     local inspectingPids = script.GetInspectingPids(pid)
@@ -256,7 +319,7 @@ function script.OnPlayerDisconnectValidator(eventStatus, pid)
     end
 end
 
-function script.OnGearCommand(pid, cmd)
+function script.OnInspectCommand(pid, cmd)
     local targetName = tableHelper.concatenateArrayValues(cmd, 2)
     local targetPid = tonumber(cmd[2]) or script.GetPidByName(targetName)
 
@@ -282,6 +345,8 @@ end
 customEventHooks.registerValidator("OnContainer", script.OnContainerValidator)
 customEventHooks.registerValidator("OnPlayerDisconnect", script.OnPlayerDisconnectValidator)
 
+customEventHooks.registerHandler("OnServerPostInit", script.OnServerPostInitHandler)
 customEventHooks.registerHandler("OnPlayerEquipment", script.OnPlayerEquipmentHandler)
+customEventHooks.registerHandler("OnPlayerInventory", script.OnPlayerInventoryHandler)
 
-customCommandHooks.registerCommand("gear", script.OnGearCommand)
+customCommandHooks.registerCommand("gear", script.OnInspectCommand)
