@@ -45,7 +45,7 @@ function script.GetInspectingPids(pid)
 end
 
 function script.GetNameByPid(pid)
-    if Players[pid] ~= nil and Players[pid]:IsLoggedIn() then
+    if script.IsPlayerLoggedIn(pid) then
         return Players[pid].accountName
     end
 
@@ -289,7 +289,7 @@ function script.OnPlayerEquipmentHandler(eventStatus, pid, playerPacket)
 
     -- Update container items for all players currently inspecting this pid
     for _, inspectingPid in ipairs(inspectingPids) do
-        if Players[inspectingPid] ~= nil and Players[inspectingPid]:IsLoggedIn() then
+        if script.IsPlayerLoggedIn(inspectingPid) then
             script.UpdateContainerItems(inspectingPid)
         end
     end
@@ -307,7 +307,7 @@ function script.OnPlayerDisconnectValidator(eventStatus, pid)
     -- Remove containers for all players inspecting this pid
     local inspectingPids = script.GetInspectingPids(pid)
     for _, inspectingPid in ipairs(inspectingPids) do
-        if Players[inspectingPid] ~= nil and Players[inspectingPid]:IsLoggedIn() then
+        if script.IsPlayerLoggedIn(inspectingPid) then
             script.RemoveContainer(inspectingPid)
         end
     end
