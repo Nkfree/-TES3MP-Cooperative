@@ -2,8 +2,11 @@
 =====================================
 | author: Nkfree                    |
 | github: https://github.com/Nkfree |
-| installation:                     |===========================================================================================================
-|   1. Create folder inspectPlayerEquipment in <tes3mp>/server/scripts/custom                                                                  |
+================================================================================================================================================
+| commands to use in chat:                                                                                                                     |
+|   /gear pid - default command to display equipment of said pid, while you can only inspect equipment of online players                       |
+| installation:                                                                                                                                |
+|   1. Create a folder inspectPlayerEquipment in <tes3mp>/server/scripts/custom                                                                |
 |   2. Add main.lua in that created folder                                                                                                     |
 |   3. Open customScripts.lua and put there this line: require("custom.inspectPlayerEquipment.main")                                           |
 |   4. Save customScripts.lua and launch the server                                                                                            |
@@ -28,7 +31,7 @@ script.containerRecord = {
 
 script.messages = {}
 script.messages["forbidSelfInspect"] = "You cannot inspect yourself.";
-script.messages["unloggedPid"] = "Cannot inspect unlogged player.";
+script.messages["unloggedPid"] = "You cannot inspect unlogged player.";
 script.messages["wrongCmd"] = "Wrong command:\n/" ..
     script.config.inspectCommand .. " <pid> OR /" .. script.config.inspectCommand .. " <name>";
 
