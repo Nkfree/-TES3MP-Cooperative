@@ -15,6 +15,10 @@ I imagined the following kinds of scenarios while creating this:\
 ### Showcase:
 [![Inspect Player Equipment showcase](https://i.ytimg.com/vi/jYykZKEXkjU/hqdefault.jpg)](https://youtu.be/jYykZKEXkjU)
 
+### Usage (command in chat):
+**/gear pid** - default command to view equipment of pid that matches online player and is not yourself\
+  *the command can be changed in the script via script.config.inspectCommand*
+
 ### Installation:
 
 <ol>
