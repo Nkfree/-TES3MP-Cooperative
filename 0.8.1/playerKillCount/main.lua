@@ -84,8 +84,8 @@ function script.LoadKill(pid, refId)
 end
 
 -- This is imporant because if you don't reload/override the kills for everyone (event if the count would be 0)
--- default handlers will ensure that the kills are incrementing for everyone, directly related to the comment above
--- script.LoadKill
+-- default handlers will ensure that the kills are incrementing for everyone,
+-- directly related to the comment above in script.LoadKill
 function script.LoadKillForEveryOne(refId)
     for pid, _ in pairs(Players) do
         if script.IsPlayerLoggedIn(pid) then
