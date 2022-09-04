@@ -33,7 +33,11 @@ I imagined the following kinds of scenarios while creating this:\
 
 ## Player Kill Count
 
-A server-side script that separates kills for players. Kills are shared only for allied players who happen to be in the same cell with the killer.
+A server-side script that separates kills for players. Kills are shared only among players who are killer's allies and happen to be in the same cell as the killer. This should encourage players to engage in combat cooperatively while not punishing those that have fallen slightly behind to loot a previous corpse or drink a potion.
+This is beneficial e.g. when players prefer to keep individual path in questing but still want to benefit from the coop aspect in cases where quests demand certain refIds killed for completion. There can also be a case where Player1 and Player2 quest together, while Player3 is offline. Why should the Player3 have the kill assigned to them when they didn't obviously earn it? Please see the below *TODO* for an issue that might occur. 
+
+### TODO:
+There might come a situation where both Player1 and Player2 are in exterior. Player1 falls slightly behind in the Cell1, while Player2 has killed an actor few metres away, unfortunately just across the border in the Cell2. This will lead to the Player1 not getting the kill, even though he's few feets away. This needs to be addressed, and I have an idea.
 
 ### Optional file:
 
@@ -49,7 +53,7 @@ This script is meant to be used with separated player journals achieved by setti
 
 [![Player Kill Count showcase](https://i.ytimg.com/vi/MmBB2YjxivQ/hqdefault.jpg)](https://youtu.be/MmBB2YjxivQ)
 
-### Usage (command in chat):
+### Usage (commands in chat):
 
 **/showkills** - lists all your killed refIds or their names (see *Optional file*) and their count in a gui box
 
