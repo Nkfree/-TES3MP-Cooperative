@@ -17,7 +17,7 @@
 local script = {}
 
 script.config = {}
-script.config.inspectCommand = "gear"; -- Command usable in chat
+script.config.inspectCommand = "gear" -- Command usable in chat
 
 script.containersData = {}
 
@@ -30,10 +30,10 @@ script.containerRecord = {
 }
 
 script.messages = {}
-script.messages["forbidSelfInspect"] = "You cannot inspect yourself.";
-script.messages["unloggedPid"] = "You cannot inspect unlogged player.";
+script.messages["forbidSelfInspect"] = "You cannot inspect yourself."
+script.messages["unloggedPid"] = "You cannot inspect unlogged player."
 script.messages["wrongCmd"] = "Wrong command:\n/" ..
-    script.config.inspectCommand .. " <pid> OR /" .. script.config.inspectCommand .. " <name>";
+    script.config.inspectCommand .. " <pid> OR /" .. script.config.inspectCommand .. " <name>"
 
 function script.GetInspectingPids(pid)
     local inspectingPids = {}
@@ -373,4 +373,4 @@ customEventHooks.registerHandler("OnServerPostInit", script.OnServerPostInitHand
 customEventHooks.registerHandler("OnPlayerEquipment", script.OnPlayerEquipmentHandler)
 customEventHooks.registerHandler("OnPlayerInventory", script.OnPlayerInventoryHandler)
 
-customCommandHooks.registerCommand("gear", script.OnInspectCommand)
+customCommandHooks.registerCommand(script.config.inspectCommand, script.OnInspectCommand)
