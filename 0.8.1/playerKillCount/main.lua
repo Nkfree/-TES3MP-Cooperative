@@ -84,7 +84,8 @@ function script.LoadKill(pid, refId)
 end
 
 -- This is imporant because if you don't reload/override the kills for everyone (event if the count would be 0)
--- default handlers will ensure that the kills are incrementing for everyone
+-- default handlers will ensure that the kills are incrementing for everyone, directly related to the comment above
+-- script.LoadKill
 function script.LoadKillForEveryOne(refId)
     for pid, _ in pairs(Players) do
         if script.IsPlayerLoggedIn(pid) then
@@ -94,9 +95,9 @@ function script.LoadKillForEveryOne(refId)
 end
 
 -- Load kills stored in player's data
--- using this instead of calling LoadKill per every refId
+-- Using this instead of calling LoadKill per every refId,
 -- so that there is single packet being sent instead of multiple
--- didn't figure out smarter solution
+-- TODO: didn't figure out smarter solution, return to it later
 function script.LoadKills(pid)
     tes3mp.ClearKillChanges(pid)
 
