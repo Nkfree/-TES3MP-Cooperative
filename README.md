@@ -4,7 +4,7 @@ Directory of scripts suited for coop, related to specific versions of TES3MP.
 
 ## Inspect Player Equipment
 
-A script that allows players to inspect other player's equipment. The displayed container should reflect on the equipment changes dynamically.
+A server-side script that allows players to inspect other player's equipment. The displayed container should reflect on the equipment changes dynamically.
 
 I imagined the following kinds of scenarios while creating this:\
 *Player1*: What do you think is a better weapon, this one?\
@@ -28,3 +28,7 @@ I imagined the following kinds of scenarios while creating this:\
   <li>Save customScripts.lua and launch the server</li>                                                           
   <li>To confirm the script is running fine, you should see "[InspectPlayerEquipment] Running..." among the few first lines of server console</li>
 </ol>
+
+## Player Kill Count
+
+A server-side script that separates kills for players so that those aren't shared per world
