@@ -3,15 +3,16 @@
 | author: Nkfree                    |
 | github: https://github.com/Nkfree |
 ==========================================================================================================================================
-| optional: script.namesData.lua that can be downloaded from https://github.com/Nkfree/-TES3MP-resources/blob/main/script.namesData.lua, |
+| optional: namesData.lua that can be downloaded from https://github.com/Nkfree/-TES3MP-resources/blob/main/namesData.lua,               |
 |           this maps refIds to names, beware that multiple refIds can reference the same name - for example Cave Rat,                   |
 |           that will result in multiple entries of Cave Rat in /showkills gui box, because there is "rat_cave_fgrh" and "rat_cave_fgt"  |
+| note: this is to be used with separated journals achieved by setting config.shareJournal = false in <tes3mp>/server/scripts/config.lua |
 | commands to use in chat:                                                                                                               |
-|   /showkills - displays gui box with all the actors killed by related player                                                           |
+|   /showkills - displays gui box with all the refIds (or names) you have killed and their respective kill counts                        |
 |   /resetkills or /resetkills pid - resets your or others' kills if you have sufficient permissions, refer to script.config for ranks   |
-| installation - if you don't wish to use script.namesData.lua, please skip to 3.:                                                       |
+| installation - if you don't wish to use namesData.lua, please skip to 3.:                                                              |
 |   1. Create resources folder in <tes3mp>/server/scripts/custom/                                                                        |
-|   2. Download script.namesData.lua and add it in that folder created above                                                             |
+|   2. Download namesData.lua and add it in that folder created above                                                                    |
 |   3. Create a folder playerKillCount in <tes3mp>/server/scripts/custom/                                                                |
 |   4. Download main.lua and add it to that newly created playerKillCount folder                                                         |
 |   5. Open customScripts.lua and put there this line: require("custom.playerKillCount.main")                                            |
@@ -94,7 +95,7 @@ function script.LoadKillForEveryOne(refId)
     end
 end
 
--- Load kills stored in player's data
+-- Loads all kills stored in player's data
 -- Using this instead of calling LoadKill per every refId,
 -- so that there is single packet being sent instead of multiple
 -- TODO: didn't figure out smarter solution, return to it later
