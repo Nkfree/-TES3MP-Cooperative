@@ -24,6 +24,7 @@
 local script = {}
 
 script.config = {}
+script.config.radius = 3200 -- radius within which ally needs to be in relative to pid during the kill; in units; cell is 8192 units large which is equivalent of 128 yards; default value 3200 is equal to 50 yards
 script.config.resetKillsRankSelf = 0 -- 0 - everyone is allowed to reset their kills, 1 - moderator, 2 - admin, 3 - server owner
 script.config.resetKillsRankOther = 3 -- 0 - everyone is allowed to reset other players' kills, 1 - moderator, 2 - admin, 3 - server owner
 
@@ -110,10 +111,51 @@ function script.LoadKills(pid)
 end
 
 -- Support players in engaging the coop experience together
--- while not punishing them for falling behind within the same cell
-function script.IsInPidCell(pidCellDescription, allyPid)
+-- while not punishing them for falling behind
+function script.IsKillEligible(pid, pidCellDescription, allyPid)
+    local isPidInExterior = tes3mp.IsInExterior(pid)
+    local isAllyInExterior = tes3mp.IsInExterior(allyPid)
+
+    -- Pid and allyPid must both be either in exterior or in interior
+    if isPidInExterior ~= isAllyInExterior then
+        return false
+    end
+
     local allyCellDescription = tes3mp.GetCell(allyPid)
-    return pidCellDescription == allyCellDescription
+
+    -- Interior cells must match
+    if not isPidInExterior and pidCellDescription ~= allyCellDescription then
+        return false
+    end
+
+    -- Both in interior and exterior the allyPid needs to be within the radius of pid
+    return script.IsInRadius(pid, allyPid)
+end
+
+-- Calculate whether pid and allyPid are within
+-- a predefined radius
+function script.IsInRadius(pid, allyPid)
+    local radius = script.config.radius
+
+    local pidLocation = {
+        posX = tes3mp.GetPosX(pid),
+        posY = tes3mp.GetPosY(pid),
+        posZ = tes3mp.GetPosZ(pid)
+    }
+
+    local allyPidLocation = {
+        posX = tes3mp.GetPosX(allyPid),
+        posY = tes3mp.GetPosY(allyPid),
+        posZ = tes3mp.GetPosZ(allyPid)
+    }
+
+    local deltaPosX = math.abs(allyPidLocation.posX - pidLocation.posX)
+    local deltaPosY = math.abs(allyPidLocation.posY - pidLocation.posY)
+    local deltaPosZ = math.abs(allyPidLocation.posZ - pidLocation.posZ)
+
+    local distance = math.sqrt(deltaPosX ^ 2 + deltaPosY ^ 2 + deltaPosZ ^ 2)
+
+    return distance <= radius
 end
 
 -- Delete any world kills on connect
@@ -150,11 +192,11 @@ function script.OnActorDeathHandler(eventStatus, pid, cellDescription, actors)
             for _, allyName in ipairs(Players[actor.killer.pid].data.alliedPlayers) do
                 local allyPid = script.GetPidByName(allyName)
 
-                if script.IsPlayerLoggedIn(allyPid) and script.IsInPidCell(cellDescription, allyPid) then
+                if script.IsPlayerLoggedIn(allyPid) and script.IsKillEligible(pid, cellDescription, allyPid) then
                     table.insert(killerPids, allyPid)
                 end
             end
-            -- Save the kills for the killer and anyone in the killer's party
+            -- Save the kills for the killer and anyone in the killer's party if they are eligible
             for _, killerPid in ipairs(killerPids) do
                 script.SaveKill(killerPid, actor.refId)
             end
