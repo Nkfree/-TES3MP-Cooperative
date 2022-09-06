@@ -33,11 +33,8 @@ I imagined the following kinds of scenarios while creating this:\
 
 ## Player Kill Count
 
-A server-side script that separates kills for players. Kills are shared only among players who are killer's allies and happen to be in the same cell as the killer. This should encourage players to engage in combat cooperatively while not punishing those that have fallen slightly behind to loot a previous corpse or drink a potion.
-This is beneficial e.g. when players prefer to keep individual path in questing but still want to benefit from the coop aspect in cases where quests demand certain refIds killed for completion. There can also be a case where Player1 and Player2 quest together, while Player3 is offline. Why should the Player3 have the kill assigned to them when they didn't obviously earn it? Please see the below *TODO* for an issue that might occur. 
-
-### TODO:
-There might come a situation where both Player1 and Player2 are in exterior. Player1 falls slightly behind in the Cell1, while Player2 has killed an actor few metres away, unfortunately just across the border in the Cell2. This will lead to the Player1 not getting the kill, even though he's few feets away. This needs to be addressed, and I have an idea.
+A server-side script that separates kills for players. Kills are shared only among players who are killer's allies and happen to be within the configured radius relative to the killer. This should encourage players to engage in combat cooperatively while not punishing those that have fallen slightly behind to loot a previous corpse or drink a potion.
+This is beneficial when players prefer to keep individual path in questing (meaning different houses and guilds) but still want to benefit from the coop aspect in cases where quests require certain actors killed for completion. There can also be a case where Player1 and Player2 quest together, while Player3 is offline. Why should the Player3 have the kill assigned to them when they didn't obviously earn it? They players can then return to the same spot with Player3 once he is online, however this still requires having a means of resetting a cell or respawning those actors, which is out of scope of this script.
 
 ### Optional file:
 
@@ -57,7 +54,20 @@ This script is meant to be used with separated player journals achieved by setti
 
 **/showkills** - lists all your killed refIds or their names (see *Optional file*) and their count in a gui box
 
-**/resetkills pid** - resets kills of player specified by their pid, resets your kills if pid is not specified, overrides default /resetkills
+**/resetkills pid** - resets kills of player specified by their pid, resets your kills if pid is not specified, overrides default /resetkills command\
+&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;&ensp;- you must be eligible to reset ranks, see configurables       
+
+### Configurables
+
+**script.config.radius = 3200**\
+Radius (in units) within which ally needs to be relative to pid during the kill. Single cell is 8192 units large which is equivalent of 128 yards. The default value 3200 is equal to 50 yards. This is approximatelly what the 3200 units look like:
+[![Default radius](https://github.com/Nkfree/-TES3MP-Script-images/blob/main/playerKillCount/default_radius.png)]()
+
+**script.config.resetKillsRankSelf = 0**\
+0 - everyone is allowed to reset their kills, 1 - moderator, 2 - admin, 3 - server owner
+
+**script.config.resetKillsRankOther = 3**\
+0 - everyone is allowed to reset other players' kills, 1 - moderator, 2 - admin, 3 - server owner
 
 ### Installation (if you do not wish to use namesData.lua, please skip to 3.):
 
