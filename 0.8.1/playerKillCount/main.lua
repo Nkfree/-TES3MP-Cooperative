@@ -11,15 +11,19 @@
 |   /showkills - displays gui box with all the refIds (or names) you have killed and their respective kill counts                        |
 |   /resetkills or /resetkills pid - resets your or others' kills if you have sufficient permissions, refer to script.config for ranks   |
 | installation - if you don't wish to use namesData.lua, please skip to 3.:                                                              |
-|   1. Create resources folder in <tes3mp>/server/scripts/custom/                                                                        |
-|   2. Download namesData.lua and add it in that folder created above                                                                    |
-|   3. Create a folder playerKillCount in <tes3mp>/server/scripts/custom/                                                                |
-|   4. Download main.lua and add it to that newly created playerKillCount folder                                                         |
-|   5. Open customScripts.lua and put there this line: require("custom.playerKillCount.main")                                            |
-|   6. Save customScripts.lua and launch the server                                                                                      |
-|   7. To confirm the script is running fine, you should see "[PlayerKillCount] Running..." among the first few lines of server console  |
+|   1. Create data folder in <tes3mp>/server/data/custom/playerKillCount                                                                 |
+|   2. Download maxKillsForId.json and add it in that folder created above                                                               |
+|   3. Create resources folder in <tes3mp>/server/scripts/custom/                                                                        |
+|   4. Download namesData.lua and add it in that folder created above                                                                    |
+|   5. Create a folder playerKillCount in <tes3mp>/server/scripts/custom/                                                                |
+|   6. Download main.lua and add it to that newly created playerKillCount folder                                                         |
+|   7. Open customScripts.lua and put there this line: require("custom.playerKillCount.main")                                            |
+|   8. Save customScripts.lua and launch the server                                                                                      |
+|   9. To confirm the script is running fine, you should see "[PlayerKillCount] Running..." among the first few lines of server console  |
 ==========================================================================================================================================
 ]]
+
+local maxKillsForId = jsonInterface.load("custom/playerkillCount/maxKillsForId.json")
 
 local script = {}
 
@@ -79,7 +83,9 @@ function script.LoadKill(pid, refId)
     -- Imporant to send the count even if the player doesn't have any kills for that refId
     -- otherwise default handlers will increment it for them anyway, that explains the 0
     local count = Players[pid].data.kills[refId] or 0
-
+    if maxKillsForId[refId] then
+        count = maxKillsForId[refId]
+    end
     tes3mp.ClearKillChanges(pid)
     tes3mp.AddKill(refId, count)
     tes3mp.SendWorldKillCount(pid, false)
@@ -104,7 +110,11 @@ function script.LoadKills(pid)
     tes3mp.ClearKillChanges(pid)
 
     for refId, count in pairs(Players[pid].data.kills) do
-        tes3mp.AddKill(refId, count)
+        local countKill = count
+        if maxKillsForId[refId] then
+            countKill = maxKillsForId[refId]
+        end        
+        tes3mp.AddKill(refId, countKill)
     end
 
     tes3mp.SendWorldKillCount(pid, false)
