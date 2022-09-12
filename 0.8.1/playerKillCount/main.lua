@@ -11,15 +11,19 @@
 |   /showkills - displays gui box with all the refIds (or names) you have killed and their respective kill counts                        |
 |   /resetkills or /resetkills pid - resets your or others' kills if you have sufficient permissions, refer to script.config for ranks   |
 | installation - if you don't wish to use namesData.lua, please skip to 3.:                                                              |
-|   1. Create resources folder in <tes3mp>/server/scripts/custom/                                                                        |
-|   2. Download namesData.lua and add it in that folder created above                                                                    |
-|   3. Create a folder playerKillCount in <tes3mp>/server/scripts/custom/                                                                |
-|   4. Download main.lua and add it to that newly created playerKillCount folder                                                         |
-|   5. Open customScripts.lua and put there this line: require("custom.playerKillCount.main")                                            |
-|   6. Save customScripts.lua and launch the server                                                                                      |
-|   7. To confirm the script is running fine, you should see "[PlayerKillCount] Running..." among the first few lines of server console  |
+|   1. Create data folder in <tes3mp>/server/data/custom/playerKillCount                                                                 |
+|   2. Download limitedRefIds.json and add it in that folder created above                                                               |
+|   3. Create resources folder in <tes3mp>/server/scripts/custom/                                                                        |
+|   4. Download namesData.lua and add it in that folder created above                                                                    |
+|   5. Create a folder playerKillCount in <tes3mp>/server/scripts/custom/                                                                |
+|   6. Download main.lua and add it to that newly created playerKillCount folder                                                         |
+|   7. Open customScripts.lua and put there this line: require("custom.playerKillCount.main")                                            |
+|   8. Save customScripts.lua and launch the server                                                                                      |
+|   9. To confirm the script is running fine, you should see "[PlayerKillCount] Running..." among the first few lines of server console  |
 ==========================================================================================================================================
 ]]
+
+local limitedRefIds = jsonInterface.load("custom/playerkillCount/limitedRefIds.json")
 
 local script = {}
 
@@ -78,7 +82,7 @@ end
 function script.LoadKill(pid, refId)
     -- Imporant to send the count even if the player doesn't have any kills for that refId
     -- otherwise default handlers will increment it for them anyway, that explains the 0
-    local count = Players[pid].data.kills[refId] or 0
+    local count = limitedRefIds[refId] or Players[pid].data.kills[refId] or 0
 
     tes3mp.ClearKillChanges(pid)
     tes3mp.AddKill(refId, count)
@@ -104,7 +108,7 @@ function script.LoadKills(pid)
     tes3mp.ClearKillChanges(pid)
 
     for refId, count in pairs(Players[pid].data.kills) do
-        tes3mp.AddKill(refId, count)
+        tes3mp.AddKill(refId, limitedRefIds[refId] or count)
     end
 
     tes3mp.SendWorldKillCount(pid, false)
@@ -198,13 +202,13 @@ function script.OnActorDeathHandler(eventStatus, pid, cellDescription, actors)
             end
             -- Save the kills for the killer and anyone in the killer's party if they are eligible
             for _, killerPid in ipairs(killerPids) do
-                script.SaveKill(killerPid, actor.refId)
+                script.SaveKill(killerPid, string.lower(actor.refId))
             end
         end
 
         -- Additional handler present in eventHandler forces ActorDeath kill to be loaded for everyone
         -- so reload them for everyone based on their actual saved kills
-        script.LoadKillForEveryOne(actor.refId)
+        script.LoadKillForEveryOne(string.lower(actor.refId))
     end
 end
 
