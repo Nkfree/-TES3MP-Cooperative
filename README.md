@@ -42,9 +42,15 @@ This is beneficial when players prefer to keep individual path in questing (mean
 this maps refIds to names from Construction Set, beware that multiple refIds can reference the same name, for example\
 Cave Rat can be referenced by both "rat_cave_fgrh" and "rat_cave_fgt", therefore you might see 2 entries being shown in /showkills gui box for Cave Rat, if you have at least one kill per both of those Cave Rat refIds, this does not have any effect on journal
 
-### Note:
+### Notes:
 
 This script is meant to be used with separated player journals achieved by setting **config.shareJournal = false** in *<tes3mp>/server/scripts/config.lua*
+
+**limitedRefIds.json** and related implementation should ensure that certain refIds do not exceed predefined kill count, thus making specific quests completable, covers Morrowind, Tribunal and Bloodmoon at the time being
+
+### TODO:
+
+Add a way to synchronize related global variables per player - I have an idea
 
 ### Showcase:
 
@@ -74,9 +80,14 @@ Radius (in units) within which ally needs to be relative to pid during the kill.
 <ol>
  <li>Create a folder resources in <tes3mp>/server/scripts/custom/</li>                                              
   <li>Download namesData.lua from the previously mentioned link and add it in that folder created above</li>           
-  <li>Create a folder playerKillCount in <tes3mp>/server/scripts/custom/</li>                         
+  <li>Create a folder playerKillCount in <tes3mp>/server/scripts/custom/</li>
+  <li>Download limitedRefIds.json and add it to that newly created playerKillCount folder</li>
   <li>Download main.lua and add it to that newly created playerKillCount folder</li>                                                           
   <li>Open customScripts.lua and put there this line: require("custom.playerKillCount.main")</li>
   <li>Save customScripts.lua and launch the server</li>
   <li>To confirm the script is running fine, you should see "[PlayerKillCount] Running..." among the first few lines of server console</li>
 </ol>
+
+
+### Credits:
+*Rickoff* - **limitedRefIds.json** and related implementation, see *Notes* for more info
