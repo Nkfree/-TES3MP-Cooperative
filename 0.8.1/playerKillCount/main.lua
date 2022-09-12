@@ -24,7 +24,7 @@
 local script = {}
 
 script.config = {}
-script.config.radius = 3200 -- radius within which ally needs to be in relative to pid during the kill; in units; cell is 8192 units large which is equivalent of 128 yards; default value 3200 is equal to 50 yards
+script.config.radius = 3200 -- radius in units within which ally needs to be relative to pid during the kill; cell is 8192 units large which is equivalent of 128 yards; default value 3200 is equal to 50 yards
 script.config.resetKillsRankSelf = 0 -- 0 - everyone is allowed to reset their kills, 1 - moderator, 2 - admin, 3 - server owner
 script.config.resetKillsRankOther = 3 -- 0 - everyone is allowed to reset other players' kills, 1 - moderator, 2 - admin, 3 - server owner
 
@@ -40,7 +40,7 @@ script.messages.subjects = {
 
 script.namesData = prequire("custom.resources.namesData") or {}
 
-script.GetPidByName = function(name)
+function script.GetPidByName(name)
     for pid, playerData in pairs(Players) do
         if string.lower(playerData.accountName) == string.lower(name) then
             return pid
@@ -67,7 +67,7 @@ function script.NotifyPlayer(pid, msg)
 end
 
 -- Save kill in player's data
-script.SaveKill = function(pid, refId)
+function script.SaveKill(pid, refId)
     if Players[pid].data.kills[refId] == nil then
         Players[pid].data.kills[refId] = 1
     else
