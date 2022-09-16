@@ -14,17 +14,17 @@
 |   1. Create resources folder in <tes3mp>/server/scripts/custom/                                                                        |
 |   2. Download namesData.lua and add it in that folder created above                                                                    |
 |   3. Create a folder playerKillCount in <tes3mp>/server/scripts/custom/                                                                |
-|   4. Download limitedRefIds.json and add it to that newly created playerKillCount folder                                               |
+|   4. Download limitedRefIds.lua and add it to that newly created playerKillCount folder                                                |
 |   5. Download main.lua and add it to that newly created playerKillCount folder                                                         |
 |   6. Open customScripts.lua and put there this line: require("custom.playerKillCount.main")                                            |
 |   7. Save customScripts.lua and launch the server                                                                                      |
 |   8. To confirm the script is running fine, you should see "[PlayerKillCount] Running..." among the first few lines of server console  |
 | credits:                                                                                                                               |
-|    Rickoff - limitedRefIds.json and related implementation that ensures quests requiring specific kill count don't break               |
-|              (limitedRefIds.json covers Morrowind, Tribunal and Bloodmoon at the time being)                                           |
+|    Rickoff - limitedRefIds.lua and related implementation that ensures quests requiring specific kill count don't break                |
+|              (limitedRefIds.lua covers Morrowind, Tribunal and Bloodmoon at the time being)                                            |
 |            - additional tweaks like introducing refId to be lowercase because it is required in certain cases                          |
 | TODO:                                                                                                                                  |
-|    - add way to synchronize globals related to kills                                                                                   |
+|    - WIP add way to synchronize globals related to kills                                                                               |
 ==========================================================================================================================================
 ]]
 
@@ -45,7 +45,7 @@ script.messages.subjects = {
     other = "another player's"
 }
 
-script.limitedRefIds = jsonInterface.load("custom/playerkillCount/limitedRefIds.json")
+script.limitedRefIds = require("custom.playerKillCount.limitedRefIds")
 script.namesData = prequire("custom.resources.namesData") or {}
 
 function script.GetPidByName(name)
@@ -208,7 +208,7 @@ function script.OnActorDeathHandler(eventStatus, pid, cellDescription, actors)
                     table.insert(killerPids, allyPid)
                 end
             end
-            -- Save the kills for the killer and anyone in the killer's party if they are eligible
+            -- Save the kills for the killer and anyone in the killer's party, if they are eligible
             for _, killerPid in ipairs(killerPids) do
                 script.SaveKill(killerPid, actorRefIdLower)
             end
@@ -217,6 +217,53 @@ function script.OnActorDeathHandler(eventStatus, pid, cellDescription, actors)
         -- Additional handler present in eventHandler forces ActorDeath kill to be loaded for everyone
         -- so reload them for everyone based on their actual saved kills
         script.LoadKillForEveryOne(actorRefIdLower)
+    end
+end
+
+-- Handle kill related global variables for player and their allies
+function script.OnClientScriptGlobalValidator(eventStatus, pid, variables)
+    for id, variable in pairs(variables) do
+        if tableHelper.containsCaseInsensitiveString(clientVariableScopes.globals.kills, id) then
+
+            -- Save the kill related global for the player
+            Players[pid].data.clientVariables.globals[id] = variable
+
+            -- Save the kill related global for anyone in the killer's party, if they are eligible
+            -- and sent it to them
+            for _, allyName in ipairs(Players[actor.killer.pid].data.alliedPlayers) do
+                local allyPid = script.GetPidByName(allyName)
+
+                if script.IsPlayerLoggedIn(allyPid) and script.IsKillEligible(pid, cellDescription, allyPid) then
+                    Players[allyPid].data.clientVariables.globals[id] = variable
+                    tes3mp.SendClientScriptGlobal(allyPid, false, false)
+                end
+            end
+
+            -- Remove the variable from the variables table
+            -- to ensure it doesn't get processed again in the handler
+            variables[id] = nil
+        end
+    end
+end
+
+function script.ResetKillGlobals(pid)
+    local playerGlobals = Players[pid].data.clientVariables.globals
+
+    local variableCount = 0
+
+    tes3mp.ClearClientGlobals()
+
+    for _, globalId in ipairs(clientVariableScopes.globals.kills) do
+        if playerGlobals[globalId] ~= nil then
+            local variableTable = playerGlobals[globalId]
+            tes3mp.AddClientGlobalInteger(globalId, variableTable.intValue, variableTable.variableType)
+
+            variableCount = variableCount + 1
+        end
+    end
+
+    if variableCount > 0 then
+        tes3mp.SendClientScriptGlobal(pid)
     end
 end
 
