@@ -46,7 +46,7 @@ Cave Rat can be referenced by both "rat_cave_fgrh" and "rat_cave_fgt", therefore
 
 This script is meant to be used with separated player journals achieved by setting **config.shareJournal = false** in *<tes3mp>/server/scripts/config.lua*
 
-**limitedRefIds.json** and related implementation should ensure that certain refIds do not exceed predefined kill count, thus making specific quests completable, covers Morrowind, Tribunal and Bloodmoon at the time being
+**limitedRefIds.lua** and related implementation should ensure that certain refIds do not exceed predefined kill count, thus making specific quests completable, covers Morrowind, Tribunal and Bloodmoon at the time being
 
 ### TODO:
 
@@ -81,7 +81,7 @@ Radius (in units) within which ally needs to be relative to pid during the kill.
  <li>Create a folder resources in <tes3mp>/server/scripts/custom/</li>                                              
   <li>Download namesData.lua from the previously mentioned link and add it in that folder created above</li>           
   <li>Create a folder playerKillCount in <tes3mp>/server/scripts/custom/</li>
-  <li>Download limitedRefIds.json and add it to that newly created playerKillCount folder</li>
+  <li>Download limitedRefIds.lua and add it to that newly created playerKillCount folder</li>
   <li>Download main.lua and add it to that newly created playerKillCount folder</li>                                                           
   <li>Open customScripts.lua and put there this line: require("custom.playerKillCount.main")</li>
   <li>Save customScripts.lua and launch the server</li>
@@ -90,4 +90,4 @@ Radius (in units) within which ally needs to be relative to pid during the kill.
 
 
 ### Credits:
-*Rickoff* - **limitedRefIds.json** and related implementation, see *Notes* for more info
+*Rickoff* - **limitedRefIds.lua** and related implementation, see *Notes* for more info
