@@ -2,6 +2,51 @@
 
 Directory of scripts suited for coop, related to specific versions of TES3MP.
 
+## Ally Stats Chat
+
+Tes3mp script that uses chat to display (monitor) health, magicka and fatigue percentage of allied players.
+
+### Additional information
+History of messages is preserved such that if you switch the monitoring off you will be able to restore and display last N chat messages,   
+where N is defined by main.configurables.keepMessagesLimit.                                                                                  
+Health, magicka and fatigue values are obtained from clients via client-side script, where client sends updates to server everytime          
+the value of the stat that has chaned by - I believe - at least a single point. This ensures the accurate stats data is received in contrary 
+to output from tes3mp stats getters. **This may result in packet spam, therefore I suggest to use the script in rather closed sessions.**  
+The way this script manages sending of chat messages should ensure it is compatible with other scripts handling OnPlayerSendMessage events.
+
+### Showcase:
+
+[![Ally Stats Chat showcase](https://i.ytimg.com/vi/_ZHUTt1X5Zs/hqdefault.jpg)](https://www.youtube.com/watch?v=_ZHUTt1X5Zs)
+
+### Known issues
+<ol>
+ <li> Due to default font not being monospaced I was not able to properly format the chat output. I had in mind to create a nicer looking effect, where each ally name with stats would be displayed in a frame made of symbols but since each character has different width, the formatting would always fall apart. Therefore I decided to go for a simpler look.</li>
+ <li>I could not decide on or figure out an ideal way to limit the count of allies displayed. Should it be managed via menu where player gets to choose which players to display? Or should the display amount be limited to N while the names would be rotated based on who has the least health? </li>
+</ol>
+
+### Configurables
+**main.configurables.colorHealth = color.Red**\
+**main.configurables.colorMagicka = color.Blue**\
+**main.configurables.colorFatigue = color.Green**\
+Which color should each stat have when displayed in chat.\
+See <tes3mp>/server/scripts/color.lua for reference.
+
+**main.configurables.commandToggleAllyStats = "as"**\
+Command that toggles between monitoring of online allies' stats
+
+**main.configurables.keepMessagesLimit = 20**\
+How many regular messages should be kept per player
+
+### Installation
+
+<ol>
+  <li>Create a folder allyStatsChat in <tes3mp>/server/scripts/custom</li>                                              
+  <li>Add main.lua in that created folder</li>                                                                                   
+  <li>Open customScripts.lua and put there this line: require("custom.allyStatsChat.main")</li>                         
+  <li>Save customScripts.lua and launch the server</li>                                                           
+  <li>To confirm the script is running fine, you should see "[AllyStatsChat] Running..." among the few first lines of server console</li>
+</ol>
+
 ## Inspect Player Equipment
 
 A server-side script that allows players to inspect other player's equipment. The displayed container should reflect on the equipment changes dynamically.
