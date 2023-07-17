@@ -7,12 +7,7 @@ Directory of scripts suited for coop, related to specific versions of TES3MP.
 Tes3mp script that uses chat to display (monitor) health, magicka and fatigue percentage of allied players.
 
 ### Additional information
-History of messages is preserved such that if you switch the monitoring off you will be able to restore and display last N chat messages,   
-where N is defined by main.configurables.keepMessagesLimit.                                                                                  
-Health, magicka and fatigue values are obtained from clients via client-side script, where client sends updates to server everytime          
-the value of the stat that has chaned by - I believe - at least a single point. This ensures the accurate stats data is received in contrary 
-to output from tes3mp stats getters. **This may result in packet spam, therefore I suggest to use the script in rather closed sessions.**  
-The way this script manages sending of chat messages should ensure it is compatible with other scripts handling OnPlayerSendMessage events.
+History of messages is preserved such that if you switch the monitoring off you will be able to restore and display last N chat messages, where N is defined by main.configurables.keepMessagesLimit. Health, magicka and fatigue values are obtained from clients via client-side script, where client sends updates to server everytime the value of the stat that has chaned by - I believe - at least a single point. This ensures the accurate stats data is received in contrary to output from tes3mp stats getters. **This may result in packet spam, therefore I suggest to use the script in rather closed sessions.** The way this script manages sending of chat messages should ensure it is compatible with other scripts handling OnPlayerSendMessage events.
 
 ### Showcase:
 
