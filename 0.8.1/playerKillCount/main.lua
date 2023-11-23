@@ -86,11 +86,13 @@ end
 function script.LoadKill(pid, refId)
     -- Imporant to send the count even if the player doesn't have any kills for that refId
     -- otherwise default handlers will increment it for them anyway, that explains the 0
-    local count = script.limitedRefIds[refId] or Players[pid].data.kills[refId] or 0
+    if Players[pid].data.kills ~= nil then
+        local count = script.limitedRefIds[refId] or Players[pid].data.kills[refId] or 0
 
-    tes3mp.ClearKillChanges(pid)
-    tes3mp.AddKill(refId, count)
-    tes3mp.SendWorldKillCount(pid, false)
+        tes3mp.ClearKillChanges(pid)
+        tes3mp.AddKill(refId, count)
+        tes3mp.SendWorldKillCount(pid, false)
+    end
 end
 
 -- This is imporant because if you don't reload/override the kills for everyone (event if the count would be 0)
