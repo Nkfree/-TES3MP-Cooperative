@@ -59,15 +59,15 @@ function script.GetPidByName(name)
 end
 
 function script.GetNameByPid(pid)
-    if script.IsPlayerLoggedIn(pid) then
+    if script.IsPlayerAuthentified(pid) then
         return Players[pid].accountName
     end
 
     return nil
 end
 
-function script.IsPlayerLoggedIn(pid)
-    return Players[pid] ~= nil and Players[pid]:IsLoggedIn()
+function script.IsPlayerAuthentified(pid)
+    return Players[pid] ~= nil and Players[pid].authentified
 end
 
 function script.NotifyPlayer(pid, msg)
@@ -98,7 +98,7 @@ end
 -- directly related to the comment above in script.LoadKill
 function script.LoadKillForEveryOne(refId)
     for pid, _ in pairs(Players) do
-        if script.IsPlayerLoggedIn(pid) then
+        if script.IsPlayerAuthentified(pid) then
             script.LoadKill(pid, refId)
         end
     end
@@ -183,6 +183,7 @@ end
 -- Load player's saved kills on login
 function script.OnPlayerAuthentifiedHandler(eventStatus, pid)
     if Players[pid].data.kills == nil then Players[pid].data.kills = {} end
+    Players[pid].authentified = true
     script.LoadKills(pid)
 end
 
@@ -204,7 +205,7 @@ function script.OnActorDeathHandler(eventStatus, pid, cellDescription, actors)
             for _, allyName in ipairs(Players[actor.killer.pid].data.alliedPlayers) do
                 local allyPid = script.GetPidByName(allyName)
 
-                if script.IsPlayerLoggedIn(allyPid) and script.IsKillEligible(pid, cellDescription, allyPid) then
+                if script.IsPlayerAuthentified(allyPid) and script.IsKillEligible(pid, cellDescription, allyPid) then
                     table.insert(killerPids, allyPid)
                 end
             end
@@ -233,7 +234,7 @@ function script.OnClientScriptGlobalValidator(eventStatus, pid, variables)
             for _, allyName in ipairs(Players[actor.killer.pid].data.alliedPlayers) do
                 local allyPid = script.GetPidByName(allyName)
 
-                if script.IsPlayerLoggedIn(allyPid) and script.IsKillEligible(pid, cellDescription, allyPid) then
+                if script.IsPlayerAuthentified(allyPid) and script.IsKillEligible(pid, cellDescription, allyPid) then
                     Players[allyPid].data.clientVariables.globals[id] = variable
                     tes3mp.SendClientScriptGlobal(allyPid, false, false)
                 end
@@ -268,7 +269,7 @@ function script.ResetKillGlobals(pid)
 end
 
 function script.ResetKills(pid)
-    if not script.IsPlayerLoggedIn(pid) then return end
+    if not script.IsPlayerAuthentified(pid) then return end
 
     for refId, _ in pairs(Players[pid].data.kills) do
         Players[pid].data.kills[refId] = 0
@@ -285,7 +286,7 @@ function script.OnResetKillsCommand(pid, cmd)
     local targetPid = tonumber(cmd[2]) or pid
 
     -- Handle targetPid not logged in
-    if not script.IsPlayerLoggedIn(targetPid) then
+    if not script.IsPlayerAuthentified(targetPid) then
         return script.NotifyPlayer(pid, script.messages.unloggedResetPid)
     end
 
