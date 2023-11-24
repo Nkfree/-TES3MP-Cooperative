@@ -37,7 +37,7 @@ script.config.resetKillsRankOther = 3 -- 0 - everyone is allowed to reset other 
 
 script.messages = {}
 script.messages["lowRankForReset"] = "You do not meet permissions to reset %s kills."
-script.messages["unloggedResetPid"] = "You cannot reset kills for unlogged player."
+script.messages["unloggedResetPid"] = "You cannot reset kills for unlogged or not fully authentified player."
 script.messages["successReset"] = "You have successfully reset %s kills."
 
 script.messages.subjects = {
