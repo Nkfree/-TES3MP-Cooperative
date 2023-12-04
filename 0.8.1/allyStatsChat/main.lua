@@ -6,7 +6,7 @@
 | description:                                                                                                                                 |
 | Tes3mp script that uses chat to display (monitor) health, magicka and fatigue percentage of allied players.                                  |
 | History of messages is preserved such that if you switch the monitoring off you will be able to restore and display last N chat messages,    |
-| where N is defined by main.configurables.keepMessagesLimit.                                                                                  |
+| where N is defined by main.configurables.keptMessagesLimit.                                                                                  |
 | Health, magicka and fatigue values are obtained from clients via client-side script, where client sends updates to server everytime          |
 | the value of the stat that has chaned by - I believe - at least a single point. This ensures the accurate stats data is received in contrary |
 | to output from tes3mp stats getters. This may result in packet spam, therefore I suggest to use this in rather closed sessions (e.g. COOP).  |
@@ -39,7 +39,7 @@ main.configurables.colorHealth = color.Red
 main.configurables.colorMagicka = color.Blue
 main.configurables.colorFatigue = color.Green
 main.configurables.commandToggleAllyStats = "as"
-main.configurables.keepMessagesLimit = 20 -- How many regular messages should be kept per player
+main.configurables.keptMessagesLimit = 20 -- How many regular messages should be kept per player
 
 main.allyStatsChatMessageComponents = {}
 main.allyStatsChatMessageComponents.verticalSeparator = "||"
@@ -87,6 +87,9 @@ tes3mp.SendMessage = function(pid, message, sendToOtherPlayers, skipAttachedPlay
     sendToOtherPlayers = sendToOtherPlayers or false
     skipAttachedPlayer = skipAttachedPlayer or false
 
+    -- Ensure that the pid argument is further treated as a number
+    pid = tonumber(pid)
+
     local affectedPids = {}
 
     -- Gather affected pids
@@ -127,7 +130,7 @@ function main.AppendMessagePlayerLinkedList(pid, message)
         messagesLinkedList.tail = messagesLinkedList.tail.next
     end
 
-    if messagesLinkedList.count >= main.configurables.keepMessagesLimit then
+    if messagesLinkedList.count >= main.configurables.keptMessagesLimit then
         messagesLinkedList.head = messagesLinkedList.head.next
     else
         messagesLinkedList.count = messagesLinkedList.count + 1
