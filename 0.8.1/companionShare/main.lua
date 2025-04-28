@@ -42,7 +42,7 @@ script.IsStandingStill = function(pid)
     return true
 end
 
--- Timer that gets executed every 100ms to detect player leaving the Companion Share
+-- Timer that gets executed periodically to detect player leaving the Companion Share
 companion_share_exit_check_timer = function(pid)
     if not script.IsPlayerLoggedIn(pid) then return end
 
