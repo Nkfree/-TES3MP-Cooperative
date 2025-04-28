@@ -42,6 +42,23 @@ How many regular messages should be kept per player
   <li>To confirm the script is running fine, you should see "[AllyStatsChat] Running..." among the few first lines of server console</li>
 </ol>
 
+## Companion Share
+
+A server-side script that aims to fix CompanionShare so that it would work with in multiplayer conditions. UI should update accordingly when multiple players have the Companion Share opened for the same companion.
+
+### Showcase:
+[![Companion Share showcase](https://i.ytimg.com/vi/jeisrNak0ac/hqdefault.jpg)](https://youtu.be/jeisrNak0ac)
+
+### Installation:
+
+<ol>
+  <li>Create a folder companionShare in <tes3mp>/server/scripts/custom</li>                                              
+  <li>Add main.lua in that created folder</li>                                                                                   
+  <li>Open customScripts.lua and put there the following line: require("custom.companionShare.main")</li>                         
+  <li>Save customScripts.lua and launch the server</li>                                                           
+  <li>To confirm that the script is running, you should see "[CompanionShare] Running..." among the few first lines of server console</li>
+</ol>
+
 ## Inspect Player Equipment
 
 A server-side script that allows players to inspect other player's equipment. The displayed container should reflect on the equipment changes dynamically.
