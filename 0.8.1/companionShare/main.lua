@@ -14,6 +14,10 @@
 |   5. To confirm that the script is running, you should see "[CompanionShare] Running..." among the first few lines of server console   |
 |                                                                                                                                        |
 | changelog:                                                                                                                             |
+|   1.2 - initialize inventory for objects without one to prevent crash                                                                  |
+|       - added additional reset of worldPlacedItem in OnPlayerInventoryHandler to prevent ignoring addition of the item with the same   |
+|         properties (as the one that was previously dropped into the world) to companion's inventory                                    |
+|       - removed check for whether companion has object data in cell - this should not happen, will be investigated if crash occurs     |
 |   1.1 - removed timer for checking player standing still, newly the IsStandingStill function is called on relevant events              |
 |       - worldPlacedItem is now reset to empty table instead of nil to prevent crash when calling tableHelper.isEqualTo with nil value  |
 |       - OnObjectDialogueChoice uses validator instead of handler as a callback, newly the companion's inventory is force loaded        |
@@ -65,6 +69,12 @@ script.OnObjectDialogueChoiceValidator = function(eventStatus, pid, cellDescript
     for uniqueIndex, object in pairs(objects) do
         if object.dialogueChoiceType == enumerations.dialogueChoice.COMPANION_SHARE and cell ~= nil and cell:ContainsObject(uniqueIndex) then
             if script.IsPlayerLoggedIn(pid) then
+
+                -- Initialize inventory for object without one
+                if cell.data.objectData[uniqueIndex].inventory == nil then
+                    cell.data.objectData[uniqueIndex].inventory = {}
+                end
+
                 cell:LoadContainers(pid, cell.data.objectData, {uniqueIndex})
                 Players[pid].companionShare = {
                     companionIndex = uniqueIndex,
@@ -115,12 +125,9 @@ script.OnPlayerInventoryHandler = function(eventStatus, pid, playerPacket)
             return
         end
 
-        local companionIndex = Players[pid].companionShare.companionIndex
+        Players[pid].companionShare.worldPlacedItem = {} -- reset the worldPlacedItem also here in case player dropped an item with the same properties in the world as well as the companion's inventory
 
-        if cell.data.objectData[companionIndex] == nil then
-            tes3mp.LogMessage(enumerations.log.WARN, "[CompanionShare] Could not add/remove item from " .. companionIndex .. " inventory as it does not exist in cell " .. cellDescription)
-            return
-        end
+        local companionIndex = Players[pid].companionShare.companionIndex
 
         local companionInventory = cell.data.objectData[companionIndex].inventory
 
