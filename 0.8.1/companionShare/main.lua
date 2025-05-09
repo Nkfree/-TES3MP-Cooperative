@@ -14,6 +14,7 @@
 |   5. To confirm that the script is running, you should see "[CompanionShare] Running..." among the first few lines of server console   |
 |                                                                                                                                        |
 | changelog:                                                                                                                             |
+|   1.3 - fix generated record items, such as those obtained from enchanting, not being saved                                            |
 |   1.2 - initialize inventory for objects without one to prevent crash                                                                  |
 |       - added additional reset of worldPlacedItem in OnPlayerInventoryHandler to prevent ignoring addition of the item with the same   |
 |         properties (as the one that was previously dropped into the world) to companion's inventory                                    |
@@ -76,6 +77,7 @@ script.OnObjectDialogueChoiceValidator = function(eventStatus, pid, cellDescript
                 end
 
                 cell:LoadContainers(pid, cell.data.objectData, {uniqueIndex})
+
                 Players[pid].companionShare = {
                     companionIndex = uniqueIndex,
                     lastKnownPosition = {
@@ -133,9 +135,23 @@ script.OnPlayerInventoryHandler = function(eventStatus, pid, playerPacket)
 
         if playerPacket.action == enumerations.inventory.ADD then
             inventoryHelper.removeExactItem(companionInventory, item.refId, item.count, item.charge, item.enchantmentCharge, item.soul)
+            if logicHandler.IsGeneratedRecord(item.refId) then
+                local recordStore = logicHandler.GetRecordStoreByRecordId(item.refId)
+
+                if recordStore ~= nil then
+                    cell:RemoveLinkToRecord(recordStore.storeType, item.refId, companionIndex)
+                end
+            end
             script.UpdateContainerUiForOthers(pid, cellDescription, companionIndex, cell.data.objectData[companionIndex].refId)
         elseif playerPacket.action == enumerations.inventory.REMOVE then
             inventoryHelper.addItem(companionInventory, item.refId, item.count, item.charge, item.enchantmentCharge, item.soul)
+            if logicHandler.IsGeneratedRecord(item.refId) then
+                local recordStore = logicHandler.GetRecordStoreByRecordId(item.refId)
+
+                if recordStore ~= nil then
+                    cell:AddLinkToRecord(recordStore.storeType, item.refId, companionIndex)
+                end
+            end
             script.UpdateContainerUiForOthers(pid, cellDescription, companionIndex, cell.data.objectData[companionIndex].refId)
         end
     end
