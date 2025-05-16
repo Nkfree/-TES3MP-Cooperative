@@ -40,7 +40,6 @@
 local BaseCell = require("cell.base")
 
 function BaseCell:MoveObjectData(uniqueIndex, newCell)
-    tes3mp.LogMessage(enumerations.log.INFO, "[OnActorCellChanges] Executed custom BaseCell:MoveObjectData(uniqueIndex, newCell)")
     -- Ensure we're not trying to move the object to the cell it's already in
     if self.description == newCell.description then return end
 
@@ -233,8 +232,6 @@ script.UpdateContainerUiForOthers = function(pid, cellDescription, companionInde
         end
     end
 end
-
-
 
 customEventHooks.registerHandler("OnServerPostInit", script.OnServerPostInitHandler)
 customEventHooks.registerValidator("OnObjectDialogueChoice", script.OnObjectDialogueChoiceValidator)
