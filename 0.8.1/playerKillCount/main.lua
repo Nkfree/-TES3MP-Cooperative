@@ -3,240 +3,354 @@
 | author: Nkfree                    |
 | github: https://github.com/Nkfree |
 ==========================================================================================================================================
-| description: A script that aims to fix CompanionShare so that it would work with in multiplayer conditions.                            |
-|              UI should update accordingly when multiple players have the Companion Share opened for the same companion.                |
-|                                                                                                                                        |
-| installation:                                                                                                                          |
-|   1. Create a folder named companionShare in <tes3mp>/server/scripts/custom/                                                           |
-|   2. Download main.lua and add it to that newly created companionShare folder                                                          |
-|   3. Open customScripts.lua and add there the following line: require("custom.companionShare.main")                                    |
-|   4. Save customScripts.lua and launch the server                                                                                      |
-|   5. To confirm that the script is running, you should see "[CompanionShare] Running..." among the first few lines of server console   |
-|                                                                                                                                        |
-| changelog:                                                                                                                             |
-|   1.4 - alter BaseCell:MoveObjectData to also migrate recordLinks for actor's custom inventory items (e.g. enchanted) to the new cell  |
-|       - recordLinks should also be removed from the original cell in the process                                                       |
-|   1.3 - fix generated record items such as those obtained from enchanting not being saved                                              |
-|   1.2 - initialize inventory for objects without one to prevent crash                                                                  |
-|       - added additional reset of worldPlacedItem in OnPlayerInventoryHandler to prevent ignoring addition of the item with the same   |
-|         properties (as the one that was previously dropped into the world) to companion's inventory                                    |
-|       - removed check for whether companion has object data in cell - this should not happen, will be investigated if crash occurs     |
-|   1.1 - removed timer for checking player standing still, newly the IsStandingStill function is called on relevant events              |
-|       - worldPlacedItem is now reset to empty table instead of nil to prevent crash when calling tableHelper.isEqualTo with nil value  |
-|       - OnObjectDialogueChoice uses validator instead of handler as a callback, newly the companion's inventory is force loaded        |
-|         upon player selecting 'Companion Share' dialogue to prevent observed desync connected with other player modifying the contents |
-|         behind the scenes                                                                                                              |
-|   1.0 - initial version                                                                                                                |
-|                                                                                                                                        |
-| known limitations:                                                                                                                     |
-|   1. - if player closes 'Companion Share', yet does not move and other player modifies the inventory of the same companion,            |
-|        the companion will be reactivated for the player and 'Companion Share' opened, this is due to me not knowing of a way to        |
-|        determine, whether the player has closed the inventory or not -> this can be avoided by slightly moving/turning upon closure    |
+| optional: namesData.lua that can be downloaded from https://github.com/Nkfree/-TES3MP-resources/blob/main/namesData.lua,               |
+|           this maps refIds to names, beware that multiple refIds can reference the same name - for example Cave Rat,                   |
+|           that will result in multiple entries of Cave Rat in /showkills gui box, because there is "rat_cave_fgrh" and "rat_cave_fgt"  |
+| note: this is to be used with separated journals achieved by setting config.shareJournal = false in <tes3mp>/server/scripts/config.lua |
+| commands to use in chat:                                                                                                               |
+|   /showkills - displays gui box with all the refIds (or names) you have killed and their respective kill counts                        |
+|   /resetkills or /resetkills pid - resets your or others' kills if you have sufficient permissions, refer to script.config for ranks   |
+| installation - if you don't wish to use namesData.lua, please skip to 3.:                                                              |
+|   1. Create resources folder in <tes3mp>/server/scripts/custom/                                                                        |
+|   2. Download namesData.lua and add it in that folder created above                                                                    |
+|   3. Create a folder playerKillCount in <tes3mp>/server/scripts/custom/                                                                |
+|   4. Download limitedRefIds.lua and add it to that newly created playerKillCount folder                                                |
+|   5. Download main.lua and add it to that newly created playerKillCount folder                                                         |
+|   6. Open customScripts.lua and put there this line: require("custom.playerKillCount.main")                                            |
+|   7. Save customScripts.lua and launch the server                                                                                      |
+|   8. To confirm the script is running fine, you should see "[PlayerKillCount] Running..." among the first few lines of server console  |
+| credits:                                                                                                                               |
+|    Rickoff - limitedRefIds.lua and related implementation that ensures quests requiring specific kill count don't break                |
+|              (limitedRefIds.lua covers Morrowind, Tribunal and Bloodmoon at the time being)                                            |
+|            - additional tweaks like introducing refId to be lowercase because it is required in certain cases                          |
+| TODO:                                                                                                                                  |
+|    - WIP add way to synchronize globals related to kills                                                                               |
 ==========================================================================================================================================
 ]]
 
--- Modify the original BaseCell:MoveObjectData function to also migrate the recordLinks for custom items (e.g. enchanted) in actor's inventory
--- gets executed when the actor changes the cell, recordLinks to custom inventory items should be removed from the original cell in the process
-local BaseCell = require("cell.base")
-
-function BaseCell:MoveObjectData(uniqueIndex, newCell)
-    tes3mp.LogMessage(enumerations.log.INFO, "[OnActorCellChanges] Executed custom BaseCell:MoveObjectData(uniqueIndex, newCell)")
-    -- Ensure we're not trying to move the object to the cell it's already in
-    if self.description == newCell.description then return end
-
-    -- Move all packets about this uniqueIndex from the old cell to the new cell
-    for packetIndex, packetType in pairs(self.data.packets) do
-
-        if tableHelper.containsValue(self.data.packets[packetIndex], uniqueIndex) then
-
-            table.insert(newCell.data.packets[packetIndex], uniqueIndex)
-            tableHelper.removeValue(self.data.packets[packetIndex], uniqueIndex)
-        end
-    end
-
-    newCell.data.objectData[uniqueIndex] = self.data.objectData[uniqueIndex]
-
-    -- * Start of companionShare script addition *
-    if self.data.objectData[uniqueIndex].inventory ~= nil then
-        for _, item in pairs(self.data.objectData[uniqueIndex].inventory) do
-            if logicHandler.IsGeneratedRecord(item.refId) then
-                local recordStore = logicHandler.GetRecordStoreByRecordId(item.refId)
-
-                if recordStore ~= nil then
-                    newCell:AddLinkToRecord(recordStore.storeType, item.refId, uniqueIndex)
-                    self:RemoveLinkToRecord(recordStore.storeType, item.refId, uniqueIndex)
-                end
-            end
-        end
-    end
-    -- * End of companionShare script addition *
-
-    self.data.objectData[uniqueIndex] = nil
-end
-
 local script = {}
 
-script.OnServerPostInitHandler = function(eventStatus)
-    tes3mp.LogMessage(enumerations.log.INFO, "[CompanionShare] Running...")
+script.config = {}
+script.config.radius = 3200 -- radius in units within which ally needs to be relative to pid during the kill; cell is 8192 units large which is equivalent of 128 yards; default value 3200 is equal to 50 yards
+script.config.resetKillsRankSelf = 0 -- 0 - everyone is allowed to reset their kills, 1 - moderator, 2 - admin, 3 - server owner
+script.config.resetKillsRankOther = 3 -- 0 - everyone is allowed to reset other players' kills, 1 - moderator, 2 - admin, 3 - server owner
+
+script.messages = {}
+script.messages["lowRankForReset"] = "You do not meet permissions to reset %s kills."
+script.messages["unloggedResetPid"] = "You cannot reset kills for unlogged or not fully authentified player."
+script.messages["successReset"] = "You have successfully reset %s kills."
+
+script.messages.subjects = {
+    your = "your",
+    other = "another player's"
+}
+
+script.limitedRefIds = require("custom.playerKillCount.limitedRefIds")
+script.namesData = prequire("custom.resources.namesData") or {}
+
+function script.GetPidByName(name)
+    for pid, playerData in pairs(Players) do
+        if string.lower(playerData.accountName) == string.lower(name) then
+            return pid
+        end
+    end
+
+    return nil
 end
 
-script.IsPlayerLoggedIn = function(pid)
-    return Players[pid] ~= nil and Players[pid]:IsLoggedIn()
+function script.GetNameByPid(pid)
+    if script.IsPlayerAuthentified(pid) then
+        return Players[pid].accountName
+    end
+
+    return nil
 end
 
--- Returns true if player's position/rotation has not changed since activation of Companion Share, false otherwise.
-script.IsStandingStill = function(pid)
-    local lastPosX = Players[pid].companionShare.lastKnownPosition.posX
-    local lastPosY = Players[pid].companionShare.lastKnownPosition.posY
-    local lastPosZ = Players[pid].companionShare.lastKnownPosition.posZ
-    local lastRotX = Players[pid].companionShare.lastKnownPosition.rotX
-    local lastRotZ = Players[pid].companionShare.lastKnownPosition.rotZ
-
-    if lastPosX ~= tes3mp.GetPosX(pid) then return false end
-    if lastPosY ~= tes3mp.GetPosY(pid) then return false end
-    if lastPosZ ~= tes3mp.GetPosZ(pid) then return false end
-    if lastRotX ~= tes3mp.GetRotX(pid) then return false end
-    if lastRotZ ~= tes3mp.GetRotZ(pid) then return false end
-
-    return true
+function script.IsPlayerAuthentified(pid)
+    return Players[pid] ~= nil and Players[pid].authentified
 end
 
--- Validator that force loads the inventory of the companion for the player, it seems that if there are any changes done to the companion inventory while player does not have it open
--- the inventory is not synced upon opening without the force load.
--- Tracks player's position/rotation and companion uniqueIndex upon activating Companion Share.
--- Lastly it also creates a helper variable to detect an item that has been removed from player's inventory, yet dropped into the world instead of into the companion's inventory.
-script.OnObjectDialogueChoiceValidator = function(eventStatus, pid, cellDescription, objects)
-    local cell = LoadedCells[cellDescription]
+function script.NotifyPlayer(pid, msg)
+    tes3mp.SendMessage(pid, color.Yellow .. msg .. "\n" .. color.Default, false)
+end
 
-    for uniqueIndex, object in pairs(objects) do
-        if object.dialogueChoiceType == enumerations.dialogueChoice.COMPANION_SHARE and cell ~= nil and cell:ContainsObject(uniqueIndex) then
-            if script.IsPlayerLoggedIn(pid) then
+-- Save kill in player's data
+function script.SaveKill(pid, refId)
+    if Players[pid].data.kills[refId] == nil then
+        Players[pid].data.kills[refId] = 1
+    else
+        Players[pid].data.kills[refId] = Players[pid].data.kills[refId] + 1
+    end
+end
 
-                -- Initialize inventory for object without one
-                if cell.data.objectData[uniqueIndex].inventory == nil then
-                    cell.data.objectData[uniqueIndex].inventory = {}
+function script.LoadKill(pid, refId)
+    -- Imporant to send the count even if the player doesn't have any kills for that refId
+    -- otherwise default handlers will increment it for them anyway, that explains the 0
+    local count = script.limitedRefIds[refId] or Players[pid].data.kills[refId] or 0
+
+    tes3mp.ClearKillChanges(pid)
+    tes3mp.AddKill(refId, count)
+    tes3mp.SendWorldKillCount(pid, false)
+end
+
+-- This is imporant because if you don't reload/override the kills for everyone (event if the count would be 0)
+-- default handlers will ensure that the kills are incrementing for everyone,
+-- directly related to the comment above in script.LoadKill
+function script.LoadKillForEveryOne(refId)
+    for pid, _ in pairs(Players) do
+        if script.IsPlayerAuthentified(pid) then
+            script.LoadKill(pid, refId)
+        end
+    end
+end
+
+-- Loads all kills stored in player's data
+-- Using this instead of calling LoadKill per every refId,
+-- so that there is single packet being sent instead of multiple
+-- TODO: didn't figure out smarter solution, return to it later
+function script.LoadKills(pid)
+    tes3mp.ClearKillChanges(pid)
+
+    for refId, count in pairs(Players[pid].data.kills) do
+        tes3mp.AddKill(refId, script.limitedRefIds[refId] or count)
+    end
+
+    tes3mp.SendWorldKillCount(pid, false)
+end
+
+-- Support players in engaging in the coop experience together
+-- while not punishing them for falling slightly behind
+function script.IsKillEligible(pid, pidCellDescription, allyPid)
+    local isPidInExterior = tes3mp.IsInExterior(pid)
+    local isAllyInExterior = tes3mp.IsInExterior(allyPid)
+
+    -- Pid and allyPid must both be either in exterior or in interior
+    if isPidInExterior ~= isAllyInExterior then
+        return false
+    end
+
+    local allyCellDescription = tes3mp.GetCell(allyPid)
+
+    -- Interior cells must match
+    if not isPidInExterior and pidCellDescription ~= allyCellDescription then
+        return false
+    end
+
+    -- Both in interior and exterior the allyPid needs to be within the radius of pid
+    return script.IsInRadius(pid, allyPid)
+end
+
+-- Calculate whether pid and allyPid are within
+-- a predefined radius
+function script.IsInRadius(pid, allyPid)
+    local radius = script.config.radius
+
+    local pidLocation = {
+        posX = tes3mp.GetPosX(pid),
+        posY = tes3mp.GetPosY(pid),
+        posZ = tes3mp.GetPosZ(pid)
+    }
+
+    local allyPidLocation = {
+        posX = tes3mp.GetPosX(allyPid),
+        posY = tes3mp.GetPosY(allyPid),
+        posZ = tes3mp.GetPosZ(allyPid)
+    }
+
+    local deltaPosX = math.abs(allyPidLocation.posX - pidLocation.posX)
+    local deltaPosY = math.abs(allyPidLocation.posY - pidLocation.posY)
+    local deltaPosZ = math.abs(allyPidLocation.posZ - pidLocation.posZ)
+
+    local distance = math.sqrt(deltaPosX ^ 2 + deltaPosY ^ 2 + deltaPosZ ^ 2)
+
+    return distance <= radius
+end
+
+-- Delete any world kills on connect
+function script.OnServerPostInitHandler(eventStatus)
+    if next(WorldInstance.data.kills) then
+        WorldInstance.data.kills = {}
+        WorldInstance:QuicksaveToDrive()
+    end
+
+    tes3mp.LogMessage(enumerations.log.INFO, "[PlayerKillCount] Running...")
+
+    -- Register it here because of how eventHandler adds additional handlers
+    -- see eventHandler.InitializeDefaultHandlers for reference
+    customEventHooks.registerHandler("OnActorDeath", script.OnActorDeathHandler)
+end
+
+-- Load player's saved kills on login
+function script.OnPlayerAuthentifiedHandler(eventStatus, pid)
+    if Players[pid].data.kills == nil then Players[pid].data.kills = {} end
+    Players[pid].authentified = true
+    script.LoadKills(pid)
+end
+
+-- Disable default OnWorldKillCount event behaviour
+function script.OnWorldKillCountValidator(eventStatus, pid)
+    return customEventHooks.makeEventStatus(false, false)
+end
+
+function script.OnActorDeathHandler(eventStatus, pid, cellDescription, actors)
+
+    for _, actor in pairs(actors) do
+        -- It appears that in some cases lower case refId is required
+        -- so use the lower case at all times
+        local actorRefIdLower = string.lower(actor.refId)
+
+        if actor.killer.pid ~= nil then
+            local killerPids = { actor.killer.pid }
+            -- Gather allied pids to share kills within the party
+            for _, allyName in ipairs(Players[actor.killer.pid].data.alliedPlayers) do
+                local allyPid = script.GetPidByName(allyName)
+
+                if script.IsPlayerAuthentified(allyPid) and script.IsKillEligible(pid, cellDescription, allyPid) then
+                    table.insert(killerPids, allyPid)
                 end
-
-                cell:LoadContainers(pid, cell.data.objectData, {uniqueIndex})
-
-                Players[pid].companionShare = {
-                    companionIndex = uniqueIndex,
-                    lastKnownPosition = {
-                        posX = tes3mp.GetPosX(pid),
-                        posY = tes3mp.GetPosY(pid),
-                        posZ = tes3mp.GetPosZ(pid),
-                        rotX = tes3mp.GetRotX(pid),
-                        rotZ = tes3mp.GetRotZ(pid)
-                    },
-                    worldPlacedItem = {}
-                }
+            end
+            -- Save the kills for the killer and anyone in the killer's party, if they are eligible
+            for _, killerPid in ipairs(killerPids) do
+                script.SaveKill(killerPid, actorRefIdLower)
             end
         end
+
+        -- Additional handler present in eventHandler forces ActorDeath kill to be loaded for everyone
+        -- so reload them for everyone based on their actual saved kills
+        script.LoadKillForEveryOne(actorRefIdLower)
     end
 end
 
--- Handler that tracks an item dropped by the player into the world (OnObjectPlace event is fired earlier than OnPlayerInventory).
-script.OnObjectPlaceHandler = function(eventStatus, pid, cellDescription, objects)
-    for uniqueIndex, object in pairs(objects) do
-        if object.droppedByPlayer then
-            if script.IsPlayerLoggedIn(pid) and Players[pid].companionShare ~= nil then
-                Players[pid].companionShare.worldPlacedItem = {refId = object.refId, enchantmentCharge = object.enchantmentCharge, count = object.count, charge = object.charge, soul = object.soul}
-            end
-        end
-    end
-end
+-- Handle kill related global variables for player and their allies
+function script.OnClientScriptGlobalValidator(eventStatus, pid, variables)
+    for id, variable in pairs(variables) do
+        if tableHelper.containsCaseInsensitiveString(clientVariableScopes.globals.kills, id) then
 
--- Handler that:
--- a) checks whether the item the packet is about has not been dropped into the world by player in the previous OnObjectPlace event - if so, it empties the worldPlacedItem and returns
--- b) adds an item to companion's inventory and updates the UI accordingly for other players that may have the Companion Share activated for the same uniqueIndex
--- c) removes an item (or part of it) from the companion's inventory and updates the UI accordingly for other players that may have the Companion Share activated for the same uniqueIndex
-script.OnPlayerInventoryHandler = function(eventStatus, pid, playerPacket)
-    if not script.IsPlayerLoggedIn(pid) then return end
+            -- Save the kill related global for the player
+            Players[pid].data.clientVariables.globals[id] = variable
 
-    local cellDescription = tes3mp.GetCell(pid)
-    local cell = LoadedCells[cellDescription]
-    local item = playerPacket.inventory[1]
+            -- Save the kill related global for anyone in the killer's party, if they are eligible
+            -- and sent it to them
+            for _, allyName in ipairs(Players[actor.killer.pid].data.alliedPlayers) do
+                local allyPid = script.GetPidByName(allyName)
 
-    if Players[pid].companionShare ~= nil and cell ~= nil then
-        if not script.IsStandingStill(pid) then
-            Players[pid].companionShare = nil
-            return
-        end
-
-        if tableHelper.isEqualTo(item, Players[pid].companionShare.worldPlacedItem) then
-            Players[pid].companionShare.worldPlacedItem = {}
-            return
-        end
-
-        Players[pid].companionShare.worldPlacedItem = {} -- reset the worldPlacedItem also here in case player dropped an item with the same properties in the world as well as the companion's inventory
-
-        local companionIndex = Players[pid].companionShare.companionIndex
-
-        local companionInventory = cell.data.objectData[companionIndex].inventory
-
-        if playerPacket.action == enumerations.inventory.ADD then
-            inventoryHelper.removeExactItem(companionInventory, item.refId, item.count, item.charge, item.enchantmentCharge, item.soul)
-            if logicHandler.IsGeneratedRecord(item.refId) then
-                local recordStore = logicHandler.GetRecordStoreByRecordId(item.refId)
-
-                if recordStore ~= nil then
-                    cell:RemoveLinkToRecord(recordStore.storeType, item.refId, companionIndex)
+                if script.IsPlayerAuthentified(allyPid) and script.IsKillEligible(pid, cellDescription, allyPid) then
+                    Players[allyPid].data.clientVariables.globals[id] = variable
+                    tes3mp.SendClientScriptGlobal(allyPid, false, false)
                 end
             end
-            script.UpdateContainerUiForOthers(pid, cellDescription, companionIndex, cell.data.objectData[companionIndex].refId)
-        elseif playerPacket.action == enumerations.inventory.REMOVE then
-            inventoryHelper.addItem(companionInventory, item.refId, item.count, item.charge, item.enchantmentCharge, item.soul)
-            if logicHandler.IsGeneratedRecord(item.refId) then
-                local recordStore = logicHandler.GetRecordStoreByRecordId(item.refId)
 
-                if recordStore ~= nil then
-                    cell:AddLinkToRecord(recordStore.storeType, item.refId, companionIndex)
-                end
-            end
-            script.UpdateContainerUiForOthers(pid, cellDescription, companionIndex, cell.data.objectData[companionIndex].refId)
+            -- Remove the variable from the variables table
+            -- to ensure it doesn't get processed again in the handler
+            variables[id] = nil
         end
     end
 end
 
--- A workaround to update the UI of the companion's inventory for other players that may have it opened,
--- it executes the 'ToggleMenus' command twice for the other player (who has the companion's inventory opened), first one to hide the UI, second one to refresh it,
--- then it force loads the inventory of the companion that has been updated via the OnPlayerInventory handler for the other player.
--- Last but not least it activates the companion for the other player again and lastly it selects the Companion Share for them - this should be seamless, other player should only notice the inventory of the companion
--- being updated, no other artifacts.
-script.UpdateContainerUiForOthers = function(pid, cellDescription, companionIndex, refId)
-    local cell = LoadedCells[cellDescription]
+function script.ResetKillGlobals(pid)
+    local playerGlobals = Players[pid].data.clientVariables.globals
 
-    for opid, _ in pairs(Players) do
-        if opid ~= pid and script.IsPlayerLoggedIn(opid) and Players[opid].companionShare ~= nil and Players[opid].companionShare.companionIndex == companionIndex and cell ~= nil then
-            if script.IsStandingStill(opid) then
-                logicHandler.RunConsoleCommandOnPlayer(opid, "ToggleMenus", false)
-                logicHandler.RunConsoleCommandOnPlayer(opid, "ToggleMenus", false)
-                cell:LoadContainers(opid, cell.data.objectData, {companionIndex})
-                logicHandler.ActivateObjectForPlayer(opid, cellDescription, companionIndex)
+    local variableCount = 0
 
-                tes3mp.ClearObjectList()
-                tes3mp.SetObjectListPid(opid)
-                tes3mp.SetObjectListCell(cellDescription)
+    tes3mp.ClearClientGlobals()
 
-                local splitIndex = companionIndex:split("-")
-                tes3mp.SetObjectRefNum(splitIndex[1])
-                tes3mp.SetObjectMpNum(splitIndex[2])
+    for _, globalId in ipairs(clientVariableScopes.globals.kills) do
+        if playerGlobals[globalId] ~= nil then
+            local variableTable = playerGlobals[globalId]
+            tes3mp.AddClientGlobalInteger(globalId, variableTable.intValue, variableTable.variableType)
 
-                tes3mp.SetObjectRefId(refId)
-                tes3mp.SetObjectDialogueChoiceType(enumerations.dialogueChoice.COMPANION_SHARE)
-                tes3mp.AddObject()
-
-                tes3mp.SendObjectDialogueChoice(false, false)
-            else
-                Players[opid].companionShare = nil
-            end
+            variableCount = variableCount + 1
         end
+    end
+
+    if variableCount > 0 then
+        tes3mp.SendClientScriptGlobal(pid)
     end
 end
 
+function script.ResetKills(pid)
+    if not script.IsPlayerAuthentified(pid) then return end
 
+    for refId, _ in pairs(Players[pid].data.kills) do
+        Players[pid].data.kills[refId] = 0
+    end
+
+    -- Load kills for pid
+    script.LoadKills(pid)
+end
+
+-- Resets kills of targetPid or pid if pid meets rank requirement
+-- if there is targetPid specified tries to reset kills for that targetPid instead,
+-- this command overrides original reset kills command
+function script.OnResetKillsCommand(pid, cmd)
+    local targetPid = tonumber(cmd[2]) or pid
+
+    -- Handle targetPid not logged in
+    if not script.IsPlayerAuthentified(targetPid) then
+        return script.NotifyPlayer(pid, script.messages.unloggedResetPid)
+    end
+
+    local staffRank = Players[pid].data.settings.staffRank
+    local messageSubject = nil
+    local targetName = nil
+
+    if targetPid == pid then
+        messageSubject = script.messages.subjects.your
+    else
+        messageSubject = script.messages.subjects.other
+        targetName = script.GetNameByPid(targetPid)
+    end
+
+    -- Handle insufficient ranks
+    if targetPid == pid and staffRank < script.config.resetKillsRankSelf or
+        targetPid ~= pid and staffRank < script.config.resetKillsRankOther then
+        local lowRankMessage = string.format(script.messages.lowRankForReset, messageSubject)
+        return script.NotifyPlayer(pid, lowRankMessage)
+    end
+
+    script.ResetKills(targetPid)
+
+    -- Handle successful reset
+    if targetName == nil then
+        targetName = messageSubject
+    end
+
+    local successMessage = string.format(script.messages.successReset, targetName)
+    return script.NotifyPlayer(pid, successMessage)
+end
+
+-- Displays total amount of player kills as well as complete list of killed actors and their respective count
+function script.OnShowKillsCommand(pid, cmd)
+    local label = "- Player Kills -\n\n"
+    local totalKills = 0
+    local items = ""
+    local sorted = {}
+
+    for refId, count in pairs(Players[pid].data.kills) do
+        -- Use namesData.lua if available
+        local actorName = script.namesData[refId] or refId
+        table.insert(sorted, { name = actorName, count = count })
+    end
+
+    -- Sort the refIds by name
+    table.sort(sorted, function(a, b)
+        return a.name < b.name
+    end)
+
+    -- Add listbox items
+    for _, data in ipairs(sorted) do
+        totalKills = totalKills + data.count
+        items = items .. data.name .. ": " .. data.count .. "\n"
+    end
+
+    label = label .. "Total: " .. totalKills
+
+    return tes3mp.ListBox(pid, -1, label, items)
+end
 
 customEventHooks.registerHandler("OnServerPostInit", script.OnServerPostInitHandler)
-customEventHooks.registerValidator("OnObjectDialogueChoice", script.OnObjectDialogueChoiceValidator)
-customEventHooks.registerHandler("OnObjectPlace", script.OnObjectPlaceHandler)
-customEventHooks.registerHandler("OnPlayerInventory", script.OnPlayerInventoryHandler)
+customEventHooks.registerHandler("OnPlayerAuthentified", script.OnPlayerAuthentifiedHandler)
+customEventHooks.registerValidator("OnWorldKillCount", script.OnWorldKillCountValidator)
+
+customCommandHooks.registerCommand("resetkills", script.OnResetKillsCommand)
+customCommandHooks.registerCommand("showkills", script.OnShowKillsCommand)
