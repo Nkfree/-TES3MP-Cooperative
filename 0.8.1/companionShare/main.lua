@@ -14,7 +14,9 @@
 |   5. To confirm that the script is running, you should see "[CompanionShare] Running..." among the first few lines of server console   |
 |                                                                                                                                        |
 | changelog:                                                                                                                             |
-|   1.3 - fix generated record items, such as those obtained from enchanting, not being saved                                            |
+|   1.4 - alter BaseCell:MoveObjectData to also migrate recordLinks for actor's custom inventory items (e.g. enchanted) to the new cell  |
+|       - recordLinks should also be removed from the original cell in the process                                                       |
+|   1.3 - fix generated record items such as those obtained from enchanting not being saved                                              |
 |   1.2 - initialize inventory for objects without one to prevent crash                                                                  |
 |       - added additional reset of worldPlacedItem in OnPlayerInventoryHandler to prevent ignoring addition of the item with the same   |
 |         properties (as the one that was previously dropped into the world) to companion's inventory                                    |
@@ -32,6 +34,45 @@
 |        determine, whether the player has closed the inventory or not -> this can be avoided by slightly moving/turning upon closure    |
 ==========================================================================================================================================
 ]]
+
+-- Modify the original BaseCell:MoveObjectData function to also migrate the recordLinks for custom items (e.g. enchanted) in actor's inventory
+-- gets executed when the actor changes the cell, recordLinks to custom inventory items should be removed from the original cell in the process
+local BaseCell = require("cell.base")
+
+function BaseCell:MoveObjectData(uniqueIndex, newCell)
+    tes3mp.LogMessage(enumerations.log.INFO, "[OnActorCellChanges] Executed custom BaseCell:MoveObjectData(uniqueIndex, newCell)")
+    -- Ensure we're not trying to move the object to the cell it's already in
+    if self.description == newCell.description then return end
+
+    -- Move all packets about this uniqueIndex from the old cell to the new cell
+    for packetIndex, packetType in pairs(self.data.packets) do
+
+        if tableHelper.containsValue(self.data.packets[packetIndex], uniqueIndex) then
+
+            table.insert(newCell.data.packets[packetIndex], uniqueIndex)
+            tableHelper.removeValue(self.data.packets[packetIndex], uniqueIndex)
+        end
+    end
+
+    newCell.data.objectData[uniqueIndex] = self.data.objectData[uniqueIndex]
+
+    -- * Start of companionShare script addition *
+    if self.data.objectData[uniqueIndex].inventory ~= nil then
+        for _, item in pairs(self.data.objectData[uniqueIndex].inventory) do
+            if logicHandler.IsGeneratedRecord(item.refId) then
+                local recordStore = logicHandler.GetRecordStoreByRecordId(item.refId)
+
+                if recordStore ~= nil then
+                    newCell:AddLinkToRecord(recordStore.storeType, item.refId, uniqueIndex)
+                    self:RemoveLinkToRecord(recordStore.storeType, item.refId, uniqueIndex)
+                end
+            end
+        end
+    end
+    -- * End of companionShare script addition *
+
+    self.data.objectData[uniqueIndex] = nil
+end
 
 local script = {}
 
@@ -193,7 +234,9 @@ script.UpdateContainerUiForOthers = function(pid, cellDescription, companionInde
     end
 end
 
+
+
 customEventHooks.registerHandler("OnServerPostInit", script.OnServerPostInitHandler)
-customEventHooks.registerHandler("OnObjectDialogueChoice", script.OnObjectDialogueChoiceValidator)
+customEventHooks.registerValidator("OnObjectDialogueChoice", script.OnObjectDialogueChoiceValidator)
 customEventHooks.registerHandler("OnObjectPlace", script.OnObjectPlaceHandler)
 customEventHooks.registerHandler("OnPlayerInventory", script.OnPlayerInventoryHandler)
